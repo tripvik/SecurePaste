@@ -9,7 +9,6 @@ namespace SecurePaste.Core
     public class ClipboardService
     {
         private static readonly object _lock = new object();
-        private static volatile bool _isInternalPaste = false;
 
         /// <summary>
         /// Gets text from the clipboard
