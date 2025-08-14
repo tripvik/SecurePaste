@@ -1,6 +1,8 @@
-﻿using SecurePaste.Core;
+﻿// MainForm.cs
+using SecurePaste.Core;
 using SecurePaste.Forms;
 using SecurePaste.Services;
+using System.Drawing.Drawing2D; // Make sure this is included
 
 namespace SecurePaste
 {
@@ -16,11 +18,8 @@ namespace SecurePaste
         private readonly object _processLock = new object();
         private string? _lastProcessedText = null;
 
-        // Loading overlay components
-        private Form? _loadingOverlay;
-        private Label? _loadingLabel;
-        private ProgressBar? _loadingProgress;
-        private System.Windows.Forms.Timer? _loadingTimer;
+        // Loading overlay component
+        private ModernLoadingOverlay? _loadingOverlay;
 
         public MainForm()
         {
@@ -60,7 +59,6 @@ namespace SecurePaste
             _contextMenu.Items.Add("Configuration", null, Configuration_Click);
             _contextMenu.Items.Add("Statistics", null, Statistics_Click);
             _contextMenu.Items.Add("-");
-            _contextMenu.Items.Add("Test Clipboard", null, TestClipboard_Click);
             _contextMenu.Items.Add("Install Presidio", null, InstallPresidio_Click);
             _contextMenu.Items.Add("-");
             _contextMenu.Items.Add("Show Loading Demo", null, ShowLoadingDemo_Click);
@@ -82,50 +80,8 @@ namespace SecurePaste
 
         private void SetupLoadingOverlay()
         {
-            // Create a semi-transparent overlay window
-            _loadingOverlay = new Form()
-            {
-                FormBorderStyle = FormBorderStyle.None,
-                BackColor = Color.Black,
-                Opacity = 0.7,
-                ShowInTaskbar = false,
-                StartPosition = FormStartPosition.Manual,
-                TopMost = true,
-                Size = new Size(300, 150),
-                Visible = false
-            };
-
-            // Create loading label
-            _loadingLabel = new Label()
-            {
-                Text = "Anonymizing clipboard content...",
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Fill,
-                BackColor = Color.Transparent
-            };
-
-            // Create progress bar
-            _loadingProgress = new ProgressBar()
-            {
-                Style = ProgressBarStyle.Marquee,
-                MarqueeAnimationSpeed = 50,
-                Dock = DockStyle.Bottom,
-                Height = 25,
-                BackColor = Color.DarkBlue,
-                ForeColor = Color.LightBlue
-            };
-
-            // Create loading timer for auto-hide
-            _loadingTimer = new System.Windows.Forms.Timer()
-            {
-                Interval = 5000 // Auto-hide after 5 seconds
-            };
-            _loadingTimer.Tick += LoadingTimer_Tick;
-
-            _loadingOverlay.Controls.Add(_loadingLabel);
-            _loadingOverlay.Controls.Add(_loadingProgress);
+            // All styling and logic is encapsulated in our new class!
+            _loadingOverlay = new ModernLoadingOverlay();
         }
 
         private void RegisterForClipboardUpdates()
@@ -141,10 +97,8 @@ namespace SecurePaste
         {
             if (m.Msg == WM_CLIPBOARDUPDATE)
             {
-                // Handle clipboard change
                 _ = Task.Run(HandleClipboardChange);
             }
-
             base.WndProc(ref m);
         }
 
@@ -152,31 +106,22 @@ namespace SecurePaste
         {
             lock (_processLock)
             {
-                if (_isProcessing)
-                    return;
+                if (_isProcessing) return;
                 _isProcessing = true;
             }
 
             try
             {
                 var config = _configService.GetConfiguration();
-                if (!config.Enabled)
-                    return;
+                if (!config.Enabled) return;
 
                 var currentText = ClipboardService.GetText();
-                if (string.IsNullOrWhiteSpace(currentText))
-                    return;
+                if (string.IsNullOrWhiteSpace(currentText)) return;
 
-                // Check if this is the same text we just processed
-                if (string.Equals(currentText, _lastProcessedText, StringComparison.Ordinal))
-                    return;
+                if (string.Equals(currentText, _lastProcessedText, StringComparison.Ordinal)) return;
 
-                // Show loading overlay immediately
                 ShowLoadingOverlay("Anonymizing clipboard content...");
-
                 var originalText = currentText;
-
-                // Anonymize the text
                 var anonymizedText = await _presidioService.AnonymizeTextAsync(originalText);
 
                 bool wasAnonymized = !string.Equals(originalText, anonymizedText, StringComparison.Ordinal);
@@ -185,133 +130,79 @@ namespace SecurePaste
                 if (wasAnonymized)
                 {
                     _lastProcessedText = anonymizedText;
-
                     if (ClipboardService.SetText(anonymizedText))
                     {
-                        // Update loading overlay
                         UpdateLoadingOverlay("Content anonymized successfully!");
-
-                        // Show success notification
                         if (config.NotificationsEnabled)
                         {
                             ShowBalloonTip("Content Anonymized",
-                                "Sensitive information has been protected. Next paste will use anonymized content.",
+                                "Sensitive information has been protected.",
                                 ToolTipIcon.Info, 4000);
                         }
-
-                        // Auto-hide overlay after 2 seconds
-                        await Task.Delay(2000);
-                        HideLoadingOverlay();
+                        await Task.Delay(1500); // Wait briefly before hiding
                     }
                     else
                     {
                         UpdateLoadingOverlay("Anonymization failed!");
                         _configService.UpdateStatistics(false);
-
                         if (config.NotificationsEnabled)
                         {
-                            ShowBalloonTip("Anonymization Failed",
-                                "Could not update clipboard",
-                                ToolTipIcon.Warning, 3000);
+                            ShowBalloonTip("Anonymization Failed", "Could not update clipboard", ToolTipIcon.Warning, 3000);
                         }
-
                         await Task.Delay(2000);
-                        HideLoadingOverlay();
                     }
                 }
                 else
                 {
                     _lastProcessedText = originalText;
                     UpdateLoadingOverlay("No sensitive data detected");
-
                     await Task.Delay(1500);
-                    HideLoadingOverlay();
                 }
             }
             catch (Exception ex)
             {
                 _configService.UpdateStatistics(false);
-
                 UpdateLoadingOverlay($"Error: {ex.Message}");
-
                 var config = _configService.GetConfiguration();
                 if (config.NotificationsEnabled)
                 {
-                    ShowBalloonTip("Error",
-                        $"Anonymization failed: {ex.Message}",
-                        ToolTipIcon.Error, 5000);
+                    ShowBalloonTip("Error", $"Anonymization failed: {ex.Message}", ToolTipIcon.Error, 5000);
                 }
-
                 await Task.Delay(3000);
-                HideLoadingOverlay();
             }
             finally
             {
+                HideLoadingOverlay();
                 lock (_processLock)
                 {
                     _isProcessing = false;
                 }
-
-                // Clear the last processed text after a delay
                 _ = Task.Delay(10000).ContinueWith(_ => _lastProcessedText = null);
             }
         }
 
         private void ShowLoadingOverlay(string message)
         {
-            if (_loadingOverlay != null && _loadingLabel != null && _loadingTimer != null)
+            if (_loadingOverlay != null)
             {
-                this.Invoke(() =>
-                {
-                    _loadingLabel.Text = message;
-                    _loadingOverlay.Size = new Size(Math.Max(300, message.Length * 8), 150);
-
-                    var screen = Screen.FromPoint(Cursor.Position);
-                    int margin = 20; // Margin from the screen edges
-
-                    // Position the overlay at the bottom-right corner
-                    _loadingOverlay.Location = new Point(
-                        screen.WorkingArea.Right - _loadingOverlay.Width - margin,
-                        screen.WorkingArea.Bottom - _loadingOverlay.Height - margin
-                    );
-
-                    _loadingOverlay.Show();
-                    _loadingOverlay.BringToFront();
-
-                    // Start auto-hide timer
-                    _loadingTimer.Stop();
-                    _loadingTimer.Start();
-                });
+                this.Invoke(() => _loadingOverlay.ShowOverlay(message));
             }
         }
 
         private void UpdateLoadingOverlay(string message)
         {
-            if (_loadingOverlay != null && _loadingLabel != null && _loadingOverlay.Visible)
+            if (_loadingOverlay != null && _loadingOverlay.Visible)
             {
-                this.Invoke(() =>
-                {
-                    _loadingLabel.Text = message;
-                    _loadingOverlay.Size = new Size(Math.Max(300, message.Length * 8), 150);
-                });
+                this.Invoke(() => _loadingOverlay.UpdateMessage(message));
             }
         }
 
         private void HideLoadingOverlay()
         {
-            if (_loadingOverlay != null && _loadingTimer != null)
+            if (_loadingOverlay != null)
             {
-                this.Invoke(() =>
-                {
-                    _loadingOverlay.Hide();
-                    _loadingTimer.Stop();
-                });
+                this.Invoke(() => _loadingOverlay.HideOverlay());
             }
-        }
-
-        private void LoadingTimer_Tick(object? sender, EventArgs e)
-        {
-            HideLoadingOverlay();
         }
 
         private async Task CheckPresidioInstallation()
@@ -320,13 +211,11 @@ namespace SecurePaste
             {
                 var config = _configService.GetConfiguration();
                 var isInstalled = await _presidioService.CheckPresidioInstallationAsync();
-
                 if (config.PresidioInstalled != isInstalled)
                 {
                     config.PresidioInstalled = isInstalled;
                     _configService.SaveConfiguration(config);
                 }
-
                 if (!isInstalled)
                 {
                     this.Invoke(() =>
@@ -365,12 +254,12 @@ namespace SecurePaste
         private void UpdateToggleMenuItemText()
         {
             if (_toggleMenuItem is null) return;
-
             var config = _configService.GetConfiguration();
             _toggleMenuItem.Text = config.Enabled ? "Disable" : "Enable";
         }
 
-        // Event handlers
+        // --- Event handlers remain the same as your original code ---
+
         private void ToggleEnabled_Click(object? sender, EventArgs e)
         {
             var config = _configService.GetConfiguration();
@@ -378,7 +267,6 @@ namespace SecurePaste
             _configService.SaveConfiguration(config);
             UpdateNotifyIconText();
             UpdateToggleMenuItemText();
-
             ShowBalloonTip("SecurePaste",
                 config.Enabled ? "Anonymization enabled" : "Anonymization disabled",
                 ToolTipIcon.Info, 2000);
@@ -386,65 +274,40 @@ namespace SecurePaste
 
         private void Configuration_Click(object? sender, EventArgs e)
         {
-            var configForm = new ConfigurationForm(_configService);
+            using var configForm = new ConfigurationForm(_configService);
             configForm.ShowDialog();
-
             _presidioService = new PresidioService(_configService.GetConfiguration());
             UpdateNotifyIconText();
         }
 
         private void Statistics_Click(object? sender, EventArgs e)
         {
-            var statsForm = new StatisticsForm(_configService);
+            using var statsForm = new StatisticsForm(_configService);
             statsForm.ShowDialog();
-        }
-
-        private void TestClipboard_Click(object? sender, EventArgs e)
-        {
-            var testForm = new TestForm(_presidioService);
-            testForm.ShowDialog();
         }
 
         private void InstallPresidio_Click(object? sender, EventArgs e)
         {
-            var installForm = new InstallPresidioForm(_configService);
+            using var installForm = new InstallPresidioForm(_configService);
             installForm.ShowDialog();
-
             _ = Task.Run(CheckPresidioInstallation);
         }
 
-        private void ShowLoadingDemo_Click(object? sender, EventArgs e)
+        private async void ShowLoadingDemo_Click(object? sender, EventArgs e)
         {
-            // Demo the loading overlay
-            ShowLoadingOverlay("Demo: Anonymizing clipboard content...");
-
-            Task.Delay(2000).ContinueWith(_ =>
-            {
-                UpdateLoadingOverlay("Demo: Content anonymized successfully!");
-                Task.Delay(2000).ContinueWith(_ => HideLoadingOverlay());
-            });
+            ShowLoadingOverlay("Demo: Anonymizing content...");
+            await Task.Delay(2000);
+            UpdateLoadingOverlay("Demo: Content anonymized!");
+            await Task.Delay(2000);
+            HideLoadingOverlay();
         }
 
         private void About_Click(object? sender, EventArgs e)
         {
             MessageBox.Show(
                 "SecurePaste v1.0\n\n" +
-                "A clipboard anonymization tool that uses Microsoft Presidio to protect sensitive information.\n\n" +
-                "Features:\n" +
-                "• Automatic clipboard monitoring\n" +
-                "• Visual processing feedback\n" +
-                "• PII detection and anonymization\n" +
-                "• Configurable entity types\n" +
-                "• Real-time processing\n\n" +
-                "How it works:\n" +
-                "1. Copy text to clipboard\n" +
-                "2. SecurePaste automatically processes it\n" +
-                "3. Next paste uses anonymized version\n\n" +
-                "Created with .NET 9 and Windows Forms",
-                "About SecurePaste",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+                "A clipboard anonymization tool that uses Microsoft Presidio to protect sensitive information.",
+                "About SecurePaste", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void Exit_Click(object? sender, EventArgs e)
@@ -471,18 +334,13 @@ namespace SecurePaste
                 return;
             }
 
-            // Cleanup
             try
             {
                 WindowsApi.RemoveClipboardFormatListener(this.Handle);
                 _notifyIcon?.Dispose();
                 _loadingOverlay?.Dispose();
-                _loadingTimer?.Dispose();
             }
-            catch
-            {
-                // Ignore cleanup errors
-            }
+            catch { /* Ignore cleanup errors */ }
 
             base.OnFormClosing(e);
         }
