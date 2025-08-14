@@ -15,7 +15,7 @@ namespace SecurePaste.Services
 
         public ConfigurationService()
         {
-            var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SecurePaste");
+            var appDataPath = Path.Combine(Environment.CurrentDirectory, "SecurePaste");
             Directory.CreateDirectory(appDataPath);
             
             _configFilePath = Path.Combine(appDataPath, "config.json");

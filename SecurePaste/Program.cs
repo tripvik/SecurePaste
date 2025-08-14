@@ -42,8 +42,11 @@ namespace SecurePaste
                 ConfigureServices(builder.Services);
                 _host = builder.Build();
 
-                // Start the host services
+                // Start the host services and verify Presidio installation
                 _host.Start();
+                
+                // Verify and update Presidio installation status in background
+                _ = Task.Run(async () => await VerifyPresidioInstallationAsync());
 
                 // Run the main form with DI
                 var mainForm = _host.Services.GetRequiredService<MainForm>();
@@ -66,19 +69,58 @@ namespace SecurePaste
             var pythonHome = Environment.CurrentDirectory;
             var venv = Path.Combine(pythonHome, ".venv");
 
-            services
+            // Register configuration service first
+            services.AddSingleton<IConfigurationService, ConfigurationService>();
+            
+            // Create a temporary service provider to get configuration
+            using var tempServiceProvider = services.BuildServiceProvider();
+            var configService = tempServiceProvider.GetRequiredService<IConfigurationService>();
+            var config = configService.GetConfiguration();
+
+            // Configure Python environment based on installation status
+            var pythonBuilder = services
                 .WithPython()
                 .WithHome(pythonHome)
-                .WithVirtualEnvironment(venv)
-                .WithPipInstaller()
-                .FromRedistributable();
+                .WithVirtualEnvironment(venv);
 
-            // Register services as singletons
-            services.AddSingleton<IConfigurationService, ConfigurationService>();
+            // Only use pip installer if Presidio is not installed
+            if (!config.PresidioInstalled)
+            {
+                pythonBuilder = pythonBuilder.WithPipInstaller();
+            }
+
+            pythonBuilder.FromRedistributable();
+
+            // Register other services
             services.AddSingleton<IPresidioService, PresidioService>();
             
             // Register forms (transient as they shouldn't be singletons)
             services.AddTransient<MainForm>();
+        }
+
+        private static async Task VerifyPresidioInstallationAsync()
+        {
+            if (_host == null) return;
+
+            try
+            {
+                var configService = _host.Services.GetRequiredService<IConfigurationService>();
+                var config = configService.GetConfiguration();
+                
+                // Only verify if not already marked as installed
+                if (!config.PresidioInstalled)
+                {
+                    // Give time for Python environment to be set up
+                    await Task.Delay(5000);
+                    
+                    var presidioService = _host.Services.GetRequiredService<IPresidioService>();
+                    await presidioService.VerifyAndUpdateInstallationStatusAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to verify Presidio installation: {ex}");
+            }
         }
 
         private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)

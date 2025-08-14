@@ -23,5 +23,11 @@ namespace SecurePaste.Services
         /// </summary>
         /// <returns>Python version string</returns>
         Task<string?> GetPythonVersionAsync();
+
+        /// <summary>
+        /// Verifies Presidio installation and updates configuration if successful
+        /// </summary>
+        /// <returns>True if verification was successful and configuration updated</returns>
+        Task<bool> VerifyAndUpdateInstallationStatusAsync();
     }
 }

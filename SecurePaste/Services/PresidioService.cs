@@ -72,6 +72,30 @@ namespace SecurePaste.Services
             }
         }
 
+        public async Task<bool> VerifyAndUpdateInstallationStatusAsync()
+        {
+            try
+            {
+                var isInstalled = await CheckPresidioInstallationAsync();
+                
+                if (isInstalled)
+                {
+                    var config = _configService.GetConfiguration();
+                    config.PresidioInstalled = true;
+                    _configService.SaveConfiguration(config);
+                    Debug.WriteLine("Presidio installation verified and configuration updated.");
+                    return true;
+                }
+                
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to verify and update Presidio installation status: {ex}");
+                return false;
+            }
+        }
+
         public async Task<string?> GetPythonVersionAsync()
         {
             try

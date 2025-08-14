@@ -351,7 +351,10 @@ namespace SecurePaste.Forms
                 
                 if (isWorking)
                 {
-                    MessageBox.Show("Python and Presidio are working correctly!", 
+                    // Update installation status if test is successful
+                    await _presidioService.VerifyAndUpdateInstallationStatusAsync();
+                    
+                    MessageBox.Show("Python and Presidio are working correctly!\n\nInstallation status has been updated.", 
                         "Test Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
