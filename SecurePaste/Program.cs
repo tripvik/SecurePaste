@@ -1,7 +1,14 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using CSnakes.Runtime;
+using SecurePaste.Services;
+
 namespace SecurePaste
 {
     internal static class Program
     {
+        private static IHost? _host;
+
         /// <summary>
         ///  The main entry point for the application.
         /// </summary>
@@ -30,14 +37,48 @@ namespace SecurePaste
 
             try
             {
-                // Run the main form
-                Application.Run(new MainForm());
+                // Setup dependency injection
+                var builder = Host.CreateApplicationBuilder();
+                ConfigureServices(builder.Services);
+                _host = builder.Build();
+
+                // Start the host services
+                _host.Start();
+
+                // Run the main form with DI
+                var mainForm = _host.Services.GetRequiredService<MainForm>();
+                Application.Run(mainForm);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"A fatal error occurred:\n{ex.Message}", 
                     "SecurePaste Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            finally
+            {
+                _host?.Dispose();
+            }
+        }
+
+        private static void ConfigureServices(IServiceCollection services)
+        {
+            // Python configuration
+            var pythonHome = Environment.CurrentDirectory;
+            var venv = Path.Combine(pythonHome, ".venv");
+
+            services
+                .WithPython()
+                .WithHome(pythonHome)
+                .WithVirtualEnvironment(venv)
+                .WithPipInstaller()
+                .FromRedistributable();
+
+            // Register services as singletons
+            services.AddSingleton<IConfigurationService, ConfigurationService>();
+            services.AddSingleton<IPresidioService, PresidioService>();
+            
+            // Register forms (transient as they shouldn't be singletons)
+            services.AddTransient<MainForm>();
         }
 
         private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)

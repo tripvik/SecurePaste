@@ -5,7 +5,8 @@ namespace SecurePaste.Forms
 {
     public partial class ConfigurationForm : Form
     {
-        private readonly ConfigurationService _configService;
+        private readonly IConfigurationService _configService;
+        private readonly IPresidioService _presidioService;
         private Configuration _configuration;
 
         // Controls
@@ -23,9 +24,10 @@ namespace SecurePaste.Forms
         private Button? btnReset;
         private Button? btnTestPython;
 
-        public ConfigurationForm(ConfigurationService configService)
+        public ConfigurationForm(IConfigurationService configService, IPresidioService presidioService)
         {
             _configService = configService;
+            _presidioService = presidioService;
             _configuration = _configService.GetConfiguration();
             
             InitializeComponent();
@@ -345,10 +347,7 @@ namespace SecurePaste.Forms
 
             try
             {
-                var tempConfig = new Configuration { PythonPath = txtPythonPath.Text };
-                var presidioService = new PresidioService(tempConfig);
-                
-                var isWorking = await presidioService.CheckPresidioInstallationAsync();
+                var isWorking = await _presidioService.CheckPresidioInstallationAsync();
                 
                 if (isWorking)
                 {

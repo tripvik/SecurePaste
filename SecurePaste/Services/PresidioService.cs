@@ -7,30 +7,16 @@ using System.Diagnostics;
 
 namespace SecurePaste.Services
 {
-    public class PresidioService : IDisposable
+    public class PresidioService : IPresidioService, IDisposable
     {
-        private readonly Configuration _config;
-        private readonly IHost _host;
+        private readonly IConfigurationService _configService;
         private readonly IPythonEnvironment _pythonEnv;
         private bool _disposed;
 
-        public PresidioService(Configuration config)
+        public PresidioService(IConfigurationService configService, IPythonEnvironment pythonEnv)
         {
-            _config = config;
-
-            var builder = Host.CreateApplicationBuilder();
-            var pythonHome = Environment.CurrentDirectory;
-            var venv = Path.Combine(pythonHome, ".venv");
-
-            builder.Services
-                .WithPython()
-                .WithHome(pythonHome)
-                .WithVirtualEnvironment(venv)
-                .WithPipInstaller()
-                .FromRedistributable();
-
-            _host = builder.Build();
-            _pythonEnv = _host.Services.GetRequiredService<IPythonEnvironment>();
+            _configService = configService;
+            _pythonEnv = pythonEnv;
         }
 
         public async Task<string> AnonymizeTextAsync(string text)
@@ -40,16 +26,17 @@ namespace SecurePaste.Services
 
             try
             {
+                var config = _configService.GetConfiguration();
                 var presidioConfig = new
                 {
-                    entities = _config.Entities.Where(e => e.Enabled).Select(e => new
+                    entities = config.Entities.Where(e => e.Enabled).Select(e => new
                     {
                         type = e.Type,
                         anonymization_method = e.AnonymizationMethod,
                         custom_replacement = e.CustomReplacement
                     }).ToArray(),
-                    confidence_threshold = _config.ConfidenceThreshold,
-                    language = _config.Language
+                    confidence_threshold = config.ConfidenceThreshold,
+                    language = config.Language
                 };
 
                 var configJson = JsonConvert.SerializeObject(presidioConfig);
@@ -117,7 +104,6 @@ namespace SecurePaste.Services
         {
             if (!_disposed)
             {
-                _host?.Dispose();
                 _disposed = true;
             }
         }

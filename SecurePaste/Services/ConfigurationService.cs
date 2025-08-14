@@ -6,7 +6,7 @@ namespace SecurePaste.Services
     /// <summary>
     /// Service for managing application configuration
     /// </summary>
-    public class ConfigurationService
+    public class ConfigurationService : IConfigurationService
     {
         private readonly string _configFilePath;
         private readonly string _statisticsFilePath;

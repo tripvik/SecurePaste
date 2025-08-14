@@ -12,8 +12,8 @@ namespace SecurePaste
         private NotifyIcon? _notifyIcon;
         private ContextMenuStrip? _contextMenu;
         private ToolStripMenuItem? _toggleMenuItem;
-        private ConfigurationService _configService;
-        private PresidioService _presidioService;
+        private readonly IConfigurationService _configService;
+        private readonly IPresidioService _presidioService;
         private bool _isProcessing = false;
         private readonly object _processLock = new object();
         private string? _lastProcessedText = null;
@@ -21,13 +21,12 @@ namespace SecurePaste
         // Loading overlay component
         private ModernLoadingOverlay? _loadingOverlay;
 
-        public MainForm()
+        public MainForm(IConfigurationService configService, IPresidioService presidioService)
         {
-            InitializeComponent();
+            _configService = configService;
+            _presidioService = presidioService;
 
-            // Initialize services
-            _configService = new ConfigurationService();
-            _presidioService = new PresidioService(_configService.GetConfiguration());
+            InitializeComponent();
 
             // Setup the form
             SetupForm();
@@ -272,11 +271,8 @@ namespace SecurePaste
 
         private void Configuration_Click(object? sender, EventArgs e)
         {
-            using var configForm = new ConfigurationForm(_configService);
+            using var configForm = new ConfigurationForm(_configService, _presidioService);
             configForm.ShowDialog();
-
-            _presidioService?.Dispose();
-            _presidioService = new PresidioService(_configService.GetConfiguration());
             UpdateNotifyIconText();
         }
 
