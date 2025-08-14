@@ -59,8 +59,6 @@ namespace SecurePaste
             _contextMenu.Items.Add("Configuration", null, Configuration_Click);
             _contextMenu.Items.Add("Statistics", null, Statistics_Click);
             _contextMenu.Items.Add("-");
-            _contextMenu.Items.Add("Install Presidio", null, InstallPresidio_Click);
-            _contextMenu.Items.Add("-");
             _contextMenu.Items.Add("Show Loading Demo", null, ShowLoadingDemo_Click);
             _contextMenu.Items.Add("About", null, About_Click);
             _contextMenu.Items.Add("Exit", null, Exit_Click);
@@ -139,7 +137,7 @@ namespace SecurePaste
                                 "Sensitive information has been protected.",
                                 ToolTipIcon.Info, 4000);
                         }
-                        await Task.Delay(1500); // Wait briefly before hiding
+                        await Task.Delay(1000); // Wait briefly before hiding
                     }
                     else
                     {
@@ -149,14 +147,14 @@ namespace SecurePaste
                         {
                             ShowBalloonTip("Anonymization Failed", "Could not update clipboard", ToolTipIcon.Warning, 3000);
                         }
-                        await Task.Delay(2000);
+                        await Task.Delay(1500);
                     }
                 }
                 else
                 {
                     _lastProcessedText = originalText;
                     UpdateLoadingOverlay("No sensitive data detected");
-                    await Task.Delay(1500);
+                    await Task.Delay(1000);
                 }
             }
             catch (Exception ex)
@@ -168,7 +166,7 @@ namespace SecurePaste
                 {
                     ShowBalloonTip("Error", $"Anonymization failed: {ex.Message}", ToolTipIcon.Error, 5000);
                 }
-                await Task.Delay(3000);
+                await Task.Delay(2000);
             }
             finally
             {
@@ -276,6 +274,8 @@ namespace SecurePaste
         {
             using var configForm = new ConfigurationForm(_configService);
             configForm.ShowDialog();
+
+            _presidioService?.Dispose();
             _presidioService = new PresidioService(_configService.GetConfiguration());
             UpdateNotifyIconText();
         }
@@ -284,13 +284,6 @@ namespace SecurePaste
         {
             using var statsForm = new StatisticsForm(_configService);
             statsForm.ShowDialog();
-        }
-
-        private void InstallPresidio_Click(object? sender, EventArgs e)
-        {
-            using var installForm = new InstallPresidioForm(_configService);
-            installForm.ShowDialog();
-            _ = Task.Run(CheckPresidioInstallation);
         }
 
         private async void ShowLoadingDemo_Click(object? sender, EventArgs e)
@@ -339,6 +332,7 @@ namespace SecurePaste
                 WindowsApi.RemoveClipboardFormatListener(this.Handle);
                 _notifyIcon?.Dispose();
                 _loadingOverlay?.Dispose();
+                _presidioService?.Dispose();
             }
             catch { /* Ignore cleanup errors */ }
 
