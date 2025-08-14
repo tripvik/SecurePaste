@@ -424,9 +424,13 @@ namespace SecurePaste.Forms
             if (MessageBox.Show("Are you sure you want to reset all settings to defaults?", 
                 "Reset Configuration", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                _configuration = new Configuration();
+                // Use the ResetToDefaults method to ensure proper reset without duplication
+                _configuration.ResetToDefaults();
                 LoadConfiguration();
                 LoadEntitiesData();
+                
+                MessageBox.Show("Configuration has been reset to defaults.", "Reset Complete", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
     }

@@ -11,20 +11,7 @@ namespace SecurePaste.Models
         public bool Enabled { get; set; } = true;
 
         [JsonProperty("entities")]
-        public List<EntityConfiguration> Entities { get; set; } = new List<EntityConfiguration>
-        {
-            new EntityConfiguration { Type = "PERSON", Enabled = true, AnonymizationMethod = "replace" },
-            new EntityConfiguration { Type = "EMAIL_ADDRESS", Enabled = true, AnonymizationMethod = "mask" },
-            new EntityConfiguration { Type = "PHONE_NUMBER", Enabled = true, AnonymizationMethod = "mask" },
-            new EntityConfiguration { Type = "CREDIT_CARD", Enabled = true, AnonymizationMethod = "redact" },
-            new EntityConfiguration { Type = "IBAN_CODE", Enabled = true, AnonymizationMethod = "redact" },
-            new EntityConfiguration { Type = "IP_ADDRESS", Enabled = false, AnonymizationMethod = "hash" },
-            new EntityConfiguration { Type = "LOCATION", Enabled = false, AnonymizationMethod = "replace" },
-            new EntityConfiguration { Type = "DATE_TIME", Enabled = false, AnonymizationMethod = "mask" },
-            new EntityConfiguration { Type = "NRP", Enabled = true, AnonymizationMethod = "redact" },
-            new EntityConfiguration { Type = "MEDICAL_LICENSE", Enabled = false, AnonymizationMethod = "redact" },
-            new EntityConfiguration { Type = "URL", Enabled = false, AnonymizationMethod = "mask" }
-        };
+        public List<EntityConfiguration> Entities { get; set; } = new List<EntityConfiguration>();
 
         [JsonProperty("confidence_threshold")]
         public double ConfidenceThreshold { get; set; } = 0.7;
@@ -43,6 +30,96 @@ namespace SecurePaste.Models
 
         [JsonProperty("language")]
         public string Language { get; set; } = "en";
+
+        /// <summary>
+        /// Constructor that initializes entities with defaults if not loaded from JSON
+        /// </summary>
+        public Configuration()
+        {
+            InitializeDefaultEntities();
+        }
+
+        /// <summary>
+        /// Initializes the default entity configuration with all supported Presidio entities enabled
+        /// </summary>
+        private void InitializeDefaultEntities()
+        {
+            if (Entities == null || Entities.Count == 0)
+            {
+                Entities = GetDefaultEntityConfigurations();
+            }
+        }
+
+        /// <summary>
+        /// Gets the complete list of default entity configurations with all supported Presidio entities enabled by default
+        /// </summary>
+        public static List<EntityConfiguration> GetDefaultEntityConfigurations()
+        {
+            return new List<EntityConfiguration>
+            {
+                // Core PII entities - all enabled by default
+                new EntityConfiguration { Type = "PERSON", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "EMAIL_ADDRESS", Enabled = true, AnonymizationMethod = "mask" },
+                new EntityConfiguration { Type = "PHONE_NUMBER", Enabled = true, AnonymizationMethod = "mask" },
+                new EntityConfiguration { Type = "CREDIT_CARD", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IBAN_CODE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IP_ADDRESS", Enabled = true, AnonymizationMethod = "hash" },
+                new EntityConfiguration { Type = "LOCATION", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "DATE_TIME", Enabled = true, AnonymizationMethod = "mask" },
+                new EntityConfiguration { Type = "URL", Enabled = true, AnonymizationMethod = "mask" },
+                new EntityConfiguration { Type = "DOMAIN_NAME", Enabled = true, AnonymizationMethod = "mask" },
+                
+                // Government and ID entities
+                new EntityConfiguration { Type = "US_SSN", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "US_PASSPORT", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "US_DRIVER_LICENSE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "UK_NHS", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "NRP", Enabled = true, AnonymizationMethod = "redact" },
+                
+                // Financial entities
+                new EntityConfiguration { Type = "CRYPTO", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "US_BANK_NUMBER", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "ABA_ROUTING_NUMBER", Enabled = true, AnonymizationMethod = "redact" },
+                
+                // Medical entities
+                new EntityConfiguration { Type = "MEDICAL_LICENSE", Enabled = true, AnonymizationMethod = "redact" },
+                
+                // Organization entities
+                new EntityConfiguration { Type = "ORG", Enabled = true, AnonymizationMethod = "replace" },
+                
+                // Other entities
+                new EntityConfiguration { Type = "AGE", Enabled = true, AnonymizationMethod = "mask" },
+                new EntityConfiguration { Type = "TITLE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "AU_ABN", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "AU_ACN", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "AU_TFN", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "AU_MEDICARE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "ES_NIF", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IT_FISCAL_CODE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IT_DRIVER_LICENSE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IT_VAT_CODE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IT_PASSPORT", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IT_IDENTITY_CARD", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "SG_NRIC_FIN", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IN_PAN", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IN_AADHAAR", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "IN_VOTER_NUMBER", Enabled = true, AnonymizationMethod = "redact" }
+            };
+        }
+
+        /// <summary>
+        /// Resets entities to default configuration
+        /// </summary>
+        public void ResetToDefaults()
+        {
+            Entities = GetDefaultEntityConfigurations();
+            Enabled = true;
+            ConfidenceThreshold = 0.7;
+            PythonPath = "python";
+            NotificationsEnabled = true;
+            AutoStart = false;
+            Language = "en";
+        }
     }
 
     /// <summary>

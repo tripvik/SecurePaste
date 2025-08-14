@@ -63,7 +63,29 @@ namespace SecurePaste.Services
                 if (File.Exists(_configFilePath))
                 {
                     var json = File.ReadAllText(_configFilePath);
-                    _configuration = JsonConvert.DeserializeObject<Configuration>(json) ?? new Configuration();
+                    var loadedConfig = JsonConvert.DeserializeObject<Configuration>(json);
+                    
+                    if (loadedConfig != null)
+                    {
+                        _configuration = loadedConfig;
+                        
+                        // Ensure entities are properly initialized - prevent duplication
+                        // If entities list is empty or null, initialize with defaults
+                        if (_configuration.Entities == null || _configuration.Entities.Count == 0)
+                        {
+                            _configuration.Entities = Configuration.GetDefaultEntityConfigurations();
+                        }
+                        else
+                        {
+                            // Ensure all supported entities are present by merging with defaults
+                            // This handles cases where new entities are added in updates
+                            EnsureAllEntitiesPresent(_configuration);
+                        }
+                    }
+                    else
+                    {
+                        _configuration = new Configuration();
+                    }
                 }
                 else
                 {
@@ -75,6 +97,29 @@ namespace SecurePaste.Services
             {
                 _configuration = new Configuration();
             }
+        }
+
+        /// <summary>
+        /// Ensures all supported entities are present in the configuration
+        /// Adds missing entities without duplicating existing ones
+        /// </summary>
+        private void EnsureAllEntitiesPresent(Configuration config)
+        {
+            var defaultEntities = Configuration.GetDefaultEntityConfigurations();
+            var existingEntityTypes = config.Entities.Select(e => e.Type).ToHashSet();
+            
+            // Add any missing entities from the default list
+            foreach (var defaultEntity in defaultEntities)
+            {
+                if (!existingEntityTypes.Contains(defaultEntity.Type))
+                {
+                    config.Entities.Add(defaultEntity);
+                }
+            }
+            
+            // Remove any entities that are no longer in the default list (cleanup)
+            var validEntityTypes = defaultEntities.Select(e => e.Type).ToHashSet();
+            config.Entities.RemoveAll(e => !validEntityTypes.Contains(e.Type));
         }
 
         /// <summary>
