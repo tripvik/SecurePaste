@@ -9,6 +9,7 @@ namespace SecurePaste.Core
     public class ClipboardService
     {
         private static readonly object _lock = new object();
+        private static volatile bool _isInternalPaste = false;
 
         /// <summary>
         /// Gets text from the clipboard
@@ -77,13 +78,14 @@ namespace SecurePaste.Core
                     // Convert to Unicode
                     byte[] bytes = Encoding.Unicode.GetBytes(text + '\0');
                     IntPtr hGlobal = WindowsApi.GlobalAlloc(WindowsApi.GMEM_MOVEABLE, (UIntPtr)bytes.Length);
-                    
+
                     if (hGlobal == IntPtr.Zero)
                         return false;
 
                     IntPtr lpMem = WindowsApi.GlobalLock(hGlobal);
                     if (lpMem == IntPtr.Zero)
                     {
+                        WindowsApi.GlobalFree(hGlobal);
                         return false;
                     }
 
@@ -91,15 +93,19 @@ namespace SecurePaste.Core
                     {
                         Marshal.Copy(bytes, 0, lpMem, bytes.Length);
                         WindowsApi.GlobalUnlock(hGlobal);
-                        
+
                         if (WindowsApi.SetClipboardData(WindowsApi.CF_UNICODETEXT, hGlobal) == IntPtr.Zero)
+                        {
+                            WindowsApi.GlobalFree(hGlobal);
                             return false;
+                        }
 
                         return true;
                     }
                     catch
                     {
                         WindowsApi.GlobalUnlock(hGlobal);
+                        WindowsApi.GlobalFree(hGlobal);
                         return false;
                     }
                 }
@@ -108,18 +114,6 @@ namespace SecurePaste.Core
                     WindowsApi.CloseClipboard();
                 }
             }
-        }
-
-        /// <summary>
-        /// Simulates Ctrl+V paste operation
-        /// </summary>
-        public static void SimulatePaste()
-        {
-            // Send Ctrl+V to the foreground window
-            WindowsApi.keybd_event(WindowsApi.VK_CONTROL, 0, 0, UIntPtr.Zero);
-            WindowsApi.keybd_event(WindowsApi.VK_V, 0, 0, UIntPtr.Zero);
-            WindowsApi.keybd_event(WindowsApi.VK_V, 0, WindowsApi.KEYEVENTF_KEYUP, UIntPtr.Zero);
-            WindowsApi.keybd_event(WindowsApi.VK_CONTROL, 0, WindowsApi.KEYEVENTF_KEYUP, UIntPtr.Zero);
         }
     }
 }
