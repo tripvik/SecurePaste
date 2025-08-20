@@ -29,5 +29,11 @@ namespace SecurePaste.Services
         /// </summary>
         /// <returns>True if verification was successful and configuration updated</returns>
         Task<bool> VerifyAndUpdateInstallationStatusAsync();
+
+        /// <summary>
+        /// Tests the custom password recognizer functionality
+        /// </summary>
+        /// <returns>JSON string with test results</returns>
+        Task<string> TestPasswordRecognizerAsync();
     }
 }

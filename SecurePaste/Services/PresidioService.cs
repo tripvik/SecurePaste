@@ -110,6 +110,20 @@ namespace SecurePaste.Services
             }
         }
 
+        public async Task<string> TestPasswordRecognizerAsync()
+        {
+            try
+            {
+                var module = _pythonEnv.SecurepasteAnonymizer();
+                return await Task.Run(() => module.TestPasswordRecognizer());
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to test password recognizer: {ex}");
+                return JsonConvert.SerializeObject(new { success = false, error = ex.Message });
+            }
+        }
+
         private class AnonymizationResult
         {
             [JsonProperty("success")]

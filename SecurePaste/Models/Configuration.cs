@@ -61,28 +61,31 @@ namespace SecurePaste.Models
                 new EntityConfiguration { Type = "PERSON", Enabled = true, AnonymizationMethod = "replace" },
                 new EntityConfiguration { Type = "EMAIL_ADDRESS", Enabled = true, AnonymizationMethod = "mask" },
                 new EntityConfiguration { Type = "PHONE_NUMBER", Enabled = true, AnonymizationMethod = "mask" },
-                new EntityConfiguration { Type = "CREDIT_CARD", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IBAN_CODE", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IP_ADDRESS", Enabled = true, AnonymizationMethod = "hash" },
+                new EntityConfiguration { Type = "CREDIT_CARD", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IBAN_CODE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IP_ADDRESS", Enabled = true, AnonymizationMethod = "mask" },
                 new EntityConfiguration { Type = "LOCATION", Enabled = true, AnonymizationMethod = "replace" },
                 new EntityConfiguration { Type = "DATE_TIME", Enabled = true, AnonymizationMethod = "mask" },
                 new EntityConfiguration { Type = "URL", Enabled = true, AnonymizationMethod = "mask" },
                 new EntityConfiguration { Type = "DOMAIN_NAME", Enabled = true, AnonymizationMethod = "mask" },
                 
+                // Security-related entities
+                new EntityConfiguration { Type = "PASSWORD", Enabled = true, AnonymizationMethod = "replace" },
+                
                 // Government and ID entities
-                new EntityConfiguration { Type = "US_SSN", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "US_PASSPORT", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "US_DRIVER_LICENSE", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "UK_NHS", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "NRP", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "US_SSN", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "US_PASSPORT", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "US_DRIVER_LICENSE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "UK_NHS", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "NRP", Enabled = true, AnonymizationMethod = "replace" },
                 
                 // Financial entities
-                new EntityConfiguration { Type = "CRYPTO", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "US_BANK_NUMBER", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "ABA_ROUTING_NUMBER", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "CRYPTO", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "US_BANK_NUMBER", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "ABA_ROUTING_NUMBER", Enabled = true, AnonymizationMethod = "replace" },
                 
                 // Medical entities
-                new EntityConfiguration { Type = "MEDICAL_LICENSE", Enabled = true, AnonymizationMethod = "redact" },
+                new EntityConfiguration { Type = "MEDICAL_LICENSE", Enabled = true, AnonymizationMethod = "replace" },
                 
                 // Organization entities
                 new EntityConfiguration { Type = "ORG", Enabled = true, AnonymizationMethod = "replace" },
@@ -90,20 +93,20 @@ namespace SecurePaste.Models
                 // Other entities
                 new EntityConfiguration { Type = "AGE", Enabled = true, AnonymizationMethod = "mask" },
                 new EntityConfiguration { Type = "TITLE", Enabled = true, AnonymizationMethod = "replace" },
-                new EntityConfiguration { Type = "AU_ABN", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "AU_ACN", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "AU_TFN", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "AU_MEDICARE", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "ES_NIF", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IT_FISCAL_CODE", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IT_DRIVER_LICENSE", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IT_VAT_CODE", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IT_PASSPORT", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IT_IDENTITY_CARD", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "SG_NRIC_FIN", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IN_PAN", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IN_AADHAAR", Enabled = true, AnonymizationMethod = "redact" },
-                new EntityConfiguration { Type = "IN_VOTER_NUMBER", Enabled = true, AnonymizationMethod = "redact" }
+                new EntityConfiguration { Type = "AU_ABN", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "AU_ACN", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "AU_TFN", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "AU_MEDICARE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "ES_NIF", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IT_FISCAL_CODE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IT_DRIVER_LICENSE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IT_VAT_CODE", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IT_PASSPORT", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IT_IDENTITY_CARD", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "SG_NRIC_FIN", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IN_PAN", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IN_AADHAAR", Enabled = true, AnonymizationMethod = "replace" },
+                new EntityConfiguration { Type = "IN_VOTER_NUMBER", Enabled = true, AnonymizationMethod = "replace" }
             };
         }
 
