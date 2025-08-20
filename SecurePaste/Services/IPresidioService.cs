@@ -1,3 +1,5 @@
+using SecurePaste.Models;
+
 namespace SecurePaste.Services
 {
     /// <summary>
@@ -35,5 +37,20 @@ namespace SecurePaste.Services
         /// </summary>
         /// <returns>JSON string with test results</returns>
         Task<string> TestPasswordRecognizerAsync();
+
+        /// <summary>
+        /// Tests a custom pattern against provided text
+        /// </summary>
+        /// <param name="text">Text to test against</param>
+        /// <param name="pattern">Custom pattern to test</param>
+        /// <returns>JSON string with test results</returns>
+        Task<string> TestCustomPatternAsync(string text, CustomPatternConfiguration pattern);
+
+        /// <summary>
+        /// Validates a custom pattern configuration
+        /// </summary>
+        /// <param name="pattern">Pattern to validate</param>
+        /// <returns>JSON string with validation results</returns>
+        Task<string> ValidateCustomPatternAsync(CustomPatternConfiguration pattern);
     }
 }

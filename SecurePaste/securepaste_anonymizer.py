@@ -76,6 +76,23 @@ class PasswordPatternRecognizer(PatternRecognizer):
             supported_language="en"
         )
 
+class CustomPatternRecognizer(PatternRecognizer):
+    """
+    Dynamic PatternRecognizer that can be configured with custom regex patterns
+    """
+    
+    def __init__(self, name: str, patterns: List[Pattern], entity_type: str, context: List[str] = None):
+        if not patterns:
+            raise ValueError("At least one pattern must be provided")
+        
+        super().__init__(
+            supported_entity=entity_type,
+            patterns=patterns,
+            context=context or [],
+            supported_language="en"
+        )
+        self.name = name
+
 def setup_analyzer_with_password_recognizer() -> AnalyzerEngine:
     """
     Creates an AnalyzerEngine with the custom password recognizer added.
@@ -93,8 +110,67 @@ def setup_analyzer_with_password_recognizer() -> AnalyzerEngine:
     
     return analyzer
 
+def create_custom_recognizers(custom_patterns_config: List[Dict[str, Any]]) -> List[CustomPatternRecognizer]:
+    """
+    Creates custom pattern recognizers from configuration
+    """
+    recognizers = []
+    
+    for pattern_config in custom_patterns_config:
+        if not pattern_config.get('enabled', True):
+            continue
+            
+        try:
+            # Validate the regex pattern
+            import re
+            re.compile(pattern_config['pattern'])
+            
+            pattern = Pattern(
+                name=pattern_config['name'],
+                regex=pattern_config['pattern'],
+                score=pattern_config.get('confidence_score', 0.8)
+            )
+            
+            recognizer = CustomPatternRecognizer(
+                name=pattern_config['name'],
+                patterns=[pattern],
+                entity_type=pattern_config['entity_type'],
+                context=[]  # Custom patterns can define their own context if needed
+            )
+            
+            recognizers.append(recognizer)
+            
+        except Exception as e:
+            print(f"Error creating custom recognizer '{pattern_config.get('name', 'unknown')}': {e}")
+            continue
+    
+    return recognizers
+
+def setup_analyzer_with_custom_patterns(custom_patterns_config: List[Dict[str, Any]] = None) -> AnalyzerEngine:
+    """
+    Creates an AnalyzerEngine with custom patterns and the password recognizer added.
+    Returns the configured analyzer engine.
+    """
+    if not PRESIDIO_AVAILABLE:
+        return None
+    
+    # Create the standard analyzer
+    analyzer = AnalyzerEngine()
+    
+    # Add the custom password recognizer
+    password_recognizer = PasswordPatternRecognizer()
+    analyzer.registry.add_recognizer(password_recognizer)
+    
+    # Add custom pattern recognizers if provided
+    if custom_patterns_config:
+        custom_recognizers = create_custom_recognizers(custom_patterns_config)
+        for recognizer in custom_recognizers:
+            analyzer.registry.add_recognizer(recognizer)
+    
+    return analyzer
+
 # Initialize engines once (better performance) - now with custom password recognizer
-ANALYZER = setup_analyzer_with_password_recognizer() if PRESIDIO_AVAILABLE else None
+ANALYZER = setup_analyzer_with_custom_patterns() if PRESIDIO_AVAILABLE else None
 ANONYMIZER = AnonymizerEngine() if PRESIDIO_AVAILABLE else None
 
 def create_operator_config(method: str, custom_replacement: Optional[str] = None):
@@ -126,29 +202,52 @@ def anonymize_text(text: str, config_json: str) -> str:
             raise ValueError("Invalid config: missing 'entities' list.")
         
         entity_types = [e['type'] for e in config['entities']]
-        confidence_threshold = config.get('confidence_threshold', 0.35)  # Lower threshold for better phone detection
+        confidence_threshold = config.get('confidence_threshold', 0.35)
         language = config.get('language', 'en')
+        custom_patterns_config = config.get('custom_patterns', [])
+        
+        # Create analyzer with custom patterns for this request
+        analyzer = setup_analyzer_with_custom_patterns(custom_patterns_config)
+        if not analyzer:
+            raise Exception("Failed to create analyzer")
+        
+        # Collect all entity types (standard + custom)
+        all_entity_types = entity_types.copy()
+        for pattern_config in custom_patterns_config:
+            if pattern_config.get('enabled', True):
+                entity_type = pattern_config['entity_type']
+                if entity_type not in all_entity_types:
+                    all_entity_types.append(entity_type)
         
         # Analyze text for PII entities
-        analyzer_results = ANALYZER.analyze(
+        analyzer_results = analyzer.analyze(
             text=text,
-            entities=entity_types,
+            entities=all_entity_types,
             language=language,
             score_threshold=confidence_threshold
         )
         
-        # Build operators dictionary for ALL configured entity types (recommended approach)
+        # Build operators dictionary for ALL configured entity types
         operators = {}
         entity_config_map = {e['type']: e for e in config['entities']}
         
-        # Pre-define operators for all entity types in config
+        # Pre-define operators for standard entity types
         for entity_config in config['entities']:
             operators[entity_config['type']] = create_operator_config(
                 entity_config['anonymization_method'],
                 entity_config.get('custom_replacement')
             )
         
-        # Add DEFAULT operator as fallback (recommended)
+        # Add operators for custom patterns
+        for pattern_config in custom_patterns_config:
+            if pattern_config.get('enabled', True):
+                entity_type = pattern_config['entity_type']
+                operators[entity_type] = create_operator_config(
+                    pattern_config.get('anonymization_method', 'redact'),
+                    pattern_config.get('custom_replacement')
+                )
+        
+        # Add DEFAULT operator as fallback
         if 'DEFAULT' not in operators:
             operators['DEFAULT'] = OperatorConfig('replace', {'new_value': '[REDACTED]'})
         
@@ -177,7 +276,7 @@ def anonymize_text(text: str, config_json: str) -> str:
                     'score': res.score,
                     'text': text[res.start:res.end]
                 } for res in analyzer_results
-            ]  # Added for debugging
+            ]
         })
         
     except Exception as e:
@@ -265,6 +364,107 @@ def validate_regex_patterns() -> str:
         return json.dumps({'success': True, 'message': 'All regex patterns are valid'})
     except Exception as e:
         return json.dumps({'success': False, 'error': f'Pattern validation failed: {str(e)}'})
+
+def test_custom_pattern(pattern_config_json: str, test_text: str) -> str:
+    """Test function to verify a custom pattern works correctly."""
+    if not PRESIDIO_AVAILABLE:
+        return json.dumps({'success': False, 'error': PRESIDIO_ERROR})
+    
+    try:
+        pattern_config = json.loads(pattern_config_json)
+        
+        # Create a temporary analyzer with just this pattern
+        analyzer = AnalyzerEngine()
+        
+        # Add the password recognizer for completeness
+        password_recognizer = PasswordPatternRecognizer()
+        analyzer.registry.add_recognizer(password_recognizer)
+        
+        # Add the custom pattern
+        try:
+            pattern = Pattern(
+                name=pattern_config['name'],
+                regex=pattern_config['pattern'],
+                score=pattern_config.get('confidence_score', 0.8)
+            )
+            
+            recognizer = CustomPatternRecognizer(
+                name=pattern_config['name'],
+                patterns=[pattern],
+                entity_type=pattern_config['entity_type']
+            )
+            
+            analyzer.registry.add_recognizer(recognizer)
+            
+            # Test the pattern
+            analyzer_results = analyzer.analyze(
+                text=test_text,
+                entities=[pattern_config['entity_type']],
+                language="en",
+                score_threshold=0.1  # Low threshold for testing
+            )
+            
+            return json.dumps({
+                'success': True,
+                'pattern_name': pattern_config['name'],
+                'entity_type': pattern_config['entity_type'],
+                'test_text': test_text,
+                'matches_found': len(analyzer_results),
+                'matches': [
+                    {
+                        'text': test_text[res.start:res.end],
+                        'start': res.start,
+                        'end': res.end,
+                        'score': res.score
+                    } for res in analyzer_results
+                ]
+            })
+            
+        except Exception as pattern_error:
+            return json.dumps({
+                'success': False,
+                'error': f'Pattern error: {str(pattern_error)}',
+                'pattern_name': pattern_config.get('name', 'unknown')
+            })
+        
+    except Exception as e:
+        return json.dumps({'success': False, 'error': str(e)})
+
+def validate_custom_pattern(pattern_json: str) -> str:
+    """Validate a custom pattern without executing it."""
+    try:
+        pattern_config = json.loads(pattern_json)
+        
+        # Check required fields
+        required_fields = ['name', 'pattern', 'entity_type']
+        for field in required_fields:
+            if not pattern_config.get(field):
+                return json.dumps({'success': False, 'error': f'Missing required field: {field}'})
+        
+        # Validate regex pattern
+        import re
+        try:
+            re.compile(pattern_config['pattern'])
+        except re.error as e:
+            return json.dumps({'success': False, 'error': f'Invalid regex pattern: {str(e)}'})
+        
+        # Validate confidence score
+        confidence = pattern_config.get('confidence_score', 0.8)
+        if not isinstance(confidence, (int, float)) or confidence < 0.1 or confidence > 1.0:
+            return json.dumps({'success': False, 'error': 'Confidence score must be between 0.1 and 1.0'})
+        
+        # Validate anonymization method
+        valid_methods = ['redact', 'replace', 'mask', 'hash', 'encrypt']
+        method = pattern_config.get('anonymization_method', 'redact')
+        if method not in valid_methods:
+            return json.dumps({'success': False, 'error': f'Invalid anonymization method. Must be one of: {", ".join(valid_methods)}'})
+        
+        return json.dumps({'success': True, 'message': 'Pattern validation passed'})
+        
+    except json.JSONDecodeError as e:
+        return json.dumps({'success': False, 'error': f'Invalid JSON: {str(e)}'})
+    except Exception as e:
+        return json.dumps({'success': False, 'error': str(e)})
 
 def get_python_version() -> str:
     return f"Python {sys.version}"

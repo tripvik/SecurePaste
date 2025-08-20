@@ -35,6 +35,17 @@ namespace SecurePaste.Services
                         anonymization_method = e.AnonymizationMethod,
                         custom_replacement = e.CustomReplacement
                     }).ToArray(),
+                    custom_patterns = config.CustomPatterns.Where(p => p.Enabled).Select(p => new
+                    {
+                        name = p.Name,
+                        pattern = p.Pattern,
+                        entity_type = p.EntityType,
+                        enabled = p.Enabled,
+                        confidence_score = p.ConfidenceScore,
+                        anonymization_method = p.AnonymizationMethod,
+                        custom_replacement = p.CustomReplacement,
+                        description = p.Description
+                    }).ToArray(),
                     confidence_threshold = config.ConfidenceThreshold,
                     language = config.Language
                 };
@@ -120,6 +131,68 @@ namespace SecurePaste.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to test password recognizer: {ex}");
+                return JsonConvert.SerializeObject(new { success = false, error = ex.Message });
+            }
+        }
+
+        public async Task<string> TestCustomPatternAsync(string text, CustomPatternConfiguration pattern)
+        {
+            try
+            {
+                // Create a test configuration with only this pattern
+                var testConfig = new
+                {
+                    entities = new object[0], // No standard entities
+                    custom_patterns = new[]
+                    {
+                        new
+                        {
+                            name = pattern.Name,
+                            pattern = pattern.Pattern,
+                            entity_type = pattern.EntityType,
+                            enabled = true,
+                            confidence_score = pattern.ConfidenceScore,
+                            anonymization_method = pattern.AnonymizationMethod,
+                            custom_replacement = pattern.CustomReplacement,
+                            description = pattern.Description
+                        }
+                    },
+                    confidence_threshold = Math.Min(pattern.ConfidenceScore - 0.1, 0.1),
+                    language = "en"
+                };
+
+                var configJson = JsonConvert.SerializeObject(testConfig);
+                var module = _pythonEnv.SecurepasteAnonymizer();
+                return await Task.Run(() => module.AnonymizeText(text, configJson));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to test custom pattern: {ex}");
+                return JsonConvert.SerializeObject(new { success = false, error = ex.Message });
+            }
+        }
+
+        public async Task<string> ValidateCustomPatternAsync(CustomPatternConfiguration pattern)
+        {
+            try
+            {
+                var patternJson = JsonConvert.SerializeObject(new
+                {
+                    name = pattern.Name,
+                    pattern = pattern.Pattern,
+                    entity_type = pattern.EntityType,
+                    confidence_score = pattern.ConfidenceScore,
+                    anonymization_method = pattern.AnonymizationMethod,
+                    custom_replacement = pattern.CustomReplacement,
+                    description = pattern.Description
+                });
+
+                var module = _pythonEnv.SecurepasteAnonymizer();
+                return await Task.Run(() => module.ValidateCustomPattern(patternJson));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to validate custom pattern: {ex}");
                 return JsonConvert.SerializeObject(new { success = false, error = ex.Message });
             }
         }

@@ -13,6 +13,9 @@ namespace SecurePaste.Models
         [JsonProperty("entities")]
         public List<EntityConfiguration> Entities { get; set; } = new List<EntityConfiguration>();
 
+        [JsonProperty("custom_patterns")]
+        public List<CustomPatternConfiguration> CustomPatterns { get; set; } = new List<CustomPatternConfiguration>();
+
         [JsonProperty("confidence_threshold")]
         public double ConfidenceThreshold { get; set; } = 0.7;
 
@@ -37,6 +40,7 @@ namespace SecurePaste.Models
         public Configuration()
         {
             InitializeDefaultEntities();
+            InitializeDefaultCustomPatterns();
         }
 
         /// <summary>
@@ -47,6 +51,17 @@ namespace SecurePaste.Models
             if (Entities == null || Entities.Count == 0)
             {
                 Entities = GetDefaultEntityConfigurations();
+            }
+        }
+
+        /// <summary>
+        /// Initializes default custom patterns
+        /// </summary>
+        private void InitializeDefaultCustomPatterns()
+        {
+            if (CustomPatterns == null || CustomPatterns.Count == 0)
+            {
+                CustomPatterns = GetDefaultCustomPatterns();
             }
         }
 
@@ -111,11 +126,52 @@ namespace SecurePaste.Models
         }
 
         /// <summary>
-        /// Resets entities to default configuration
+        /// Gets default custom pattern examples
+        /// </summary>
+        public static List<CustomPatternConfiguration> GetDefaultCustomPatterns()
+        {
+            return new List<CustomPatternConfiguration>
+            {
+                new CustomPatternConfiguration
+                {
+                    Name = "API Key Pattern",
+                    Pattern = @"(?i)\b(?:api[_-]?key|apikey)\s*[:=]\s*['""]?([a-zA-Z0-9_-]{20,})['""]?",
+                    EntityType = "API_KEY",
+                    Enabled = false,
+                    ConfidenceScore = 0.9,
+                    AnonymizationMethod = "redact",
+                    Description = "Detects API keys in various formats"
+                },
+                new CustomPatternConfiguration
+                {
+                    Name = "Database Connection String",
+                    Pattern = @"(?i)(?:server|host|database|db)\s*=\s*[^;]+;.*(?:password|pwd)\s*=\s*[^;]+",
+                    EntityType = "DB_CONNECTION",
+                    Enabled = false,
+                    ConfidenceScore = 0.8,
+                    AnonymizationMethod = "redact",
+                    Description = "Detects database connection strings"
+                },
+                new CustomPatternConfiguration
+                {
+                    Name = "JWT Token",
+                    Pattern = @"\b(eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*)\b",
+                    EntityType = "JWT_TOKEN",
+                    Enabled = false,
+                    ConfidenceScore = 0.95,
+                    AnonymizationMethod = "redact",
+                    Description = "Detects JSON Web Tokens (JWT)"
+                }
+            };
+        }
+
+        /// <summary>
+        /// Resets entities and custom patterns to default configuration
         /// </summary>
         public void ResetToDefaults()
         {
             Entities = GetDefaultEntityConfigurations();
+            CustomPatterns = GetDefaultCustomPatterns();
             Enabled = true;
             ConfidenceThreshold = 0.7;
             PythonPath = "python";
@@ -141,6 +197,36 @@ namespace SecurePaste.Models
 
         [JsonProperty("custom_replacement")]
         public string? CustomReplacement { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for custom regex patterns
+    /// </summary>
+    public class CustomPatternConfiguration
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonProperty("pattern")]
+        public string Pattern { get; set; } = string.Empty;
+
+        [JsonProperty("entity_type")]
+        public string EntityType { get; set; } = string.Empty;
+
+        [JsonProperty("enabled")]
+        public bool Enabled { get; set; } = true;
+
+        [JsonProperty("confidence_score")]
+        public double ConfidenceScore { get; set; } = 0.8;
+
+        [JsonProperty("anonymization_method")]
+        public string AnonymizationMethod { get; set; } = "replace";
+
+        [JsonProperty("custom_replacement")]
+        public string? CustomReplacement { get; set; }
+
+        [JsonProperty("description")]
+        public string? Description { get; set; }
     }
 
     /// <summary>

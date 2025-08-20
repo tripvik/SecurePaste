@@ -58,6 +58,7 @@ namespace SecurePaste
             _contextMenu.Items.Add("Configuration", null, Configuration_Click);
             _contextMenu.Items.Add("Statistics", null, Statistics_Click);
             _contextMenu.Items.Add("-");
+            _contextMenu.Items.Add("Custom Patterns Help", null, CustomPatternsHelp_Click);
             _contextMenu.Items.Add("Show Loading Demo", null, ShowLoadingDemo_Click);
             _contextMenu.Items.Add("About", null, About_Click);
             _contextMenu.Items.Add("Exit", null, Exit_Click);
@@ -174,7 +175,7 @@ namespace SecurePaste
                 {
                     _isProcessing = false;
                 }
-                _ = Task.Delay(10000).ContinueWith(_ => _lastProcessedText = null);
+                _= Task.Delay(10000).ContinueWith(_ => _lastProcessedText = null);
             }
         }
 
@@ -297,6 +298,38 @@ namespace SecurePaste
                 "SecurePaste v1.0\n\n" +
                 "A clipboard anonymization tool that uses Microsoft Presidio to protect sensitive information.",
                 "About SecurePaste", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void CustomPatternsHelp_Click(object? sender, EventArgs e)
+        {
+            var helpText = @"Custom Patterns Feature
+
+SecurePaste now supports custom regex patterns for detecting and anonymizing specific types of sensitive information.
+
+Features:
+• Create custom regex patterns for your specific needs
+• Test patterns against sample text before saving
+• Configure different anonymization methods (redact, replace, mask, hash)
+• Set confidence scores for pattern matching
+• Enable/disable patterns individually
+
+How to use:
+1. Open Configuration → Custom Patterns tab
+2. Click 'Add Pattern' to create a new pattern
+3. Enter a descriptive name and entity type
+4. Write your regex pattern (use the ? button for help)
+5. Test your pattern with sample text
+6. Save and enable the pattern
+
+Examples:
+• API Keys: Detect API keys in various formats
+• JWT Tokens: Identify JSON Web Tokens
+• Custom IDs: Match your organization's ID formats
+• Connection Strings: Detect database connections
+
+The patterns work alongside the built-in Presidio recognizers to provide comprehensive protection for your clipboard content.";
+
+            MessageBox.Show(helpText, "Custom Patterns Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void Exit_Click(object? sender, EventArgs e)

@@ -19,10 +19,14 @@ namespace SecurePaste.Forms
         private Button? btnBrowsePython;
         private ComboBox? cmbLanguage;
         private DataGridView? dgvEntities;
+        private DataGridView? dgvCustomPatterns;
         private Button? btnSave;
         private Button? btnCancel;
         private Button? btnReset;
         private Button? btnTestPython;
+        private Button? btnAddPattern;
+        private Button? btnRemovePattern;
+        private Button? btnTestPattern;
 
         public ConfigurationForm(IConfigurationService configService, IPresidioService presidioService)
         {
@@ -37,7 +41,7 @@ namespace SecurePaste.Forms
         private void InitializeComponent()
         {
             this.Text = "SecurePaste Configuration";
-            this.Size = new Size(600, 500);
+            this.Size = new Size(700, 600);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -57,6 +61,11 @@ namespace SecurePaste.Forms
             var entitiesTab = new TabPage("Entity Detection");
             CreateEntitiesTab(entitiesTab);
             tabControl.TabPages.Add(entitiesTab);
+
+            // Custom Patterns Tab
+            var customPatternsTab = new TabPage("Custom Patterns");
+            CreateCustomPatternsTab(customPatternsTab);
+            tabControl.TabPages.Add(customPatternsTab);
 
             // Python Tab
             var pythonTab = new TabPage("Python Configuration");
@@ -236,6 +245,121 @@ namespace SecurePaste.Forms
             tab.Controls.AddRange(new Control[] { lblInstructions, dgvEntities });
         }
 
+        private void CreateCustomPatternsTab(TabPage tab)
+        {
+            var lblInstructions = new Label
+            {
+                Text = "Create custom regex patterns to detect specific types of sensitive information:",
+                Location = new Point(20, 20),
+                Size = new Size(620, 40),
+                TextAlign = ContentAlignment.TopLeft
+            };
+
+            dgvCustomPatterns = new DataGridView
+            {
+                Location = new Point(20, 70),
+                Size = new Size(620, 320),
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            };
+
+            // Add columns for custom patterns
+            dgvCustomPatterns.Columns.Add(new DataGridViewCheckBoxColumn
+            {
+                Name = "Enabled",
+                HeaderText = "Enabled",
+                Width = 60
+            });
+
+            dgvCustomPatterns.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Name",
+                HeaderText = "Pattern Name",
+                Width = 120
+            });
+
+            dgvCustomPatterns.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "EntityType",
+                HeaderText = "Entity Type",
+                Width = 100
+            });
+
+            dgvCustomPatterns.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Pattern",
+                HeaderText = "Regex Pattern",
+                Width = 200
+            });
+
+            var confidenceColumn = new DataGridViewTextBoxColumn
+            {
+                Name = "ConfidenceScore",
+                HeaderText = "Confidence",
+                Width = 80
+            };
+            dgvCustomPatterns.Columns.Add(confidenceColumn);
+
+            var methodColumn = new DataGridViewComboBoxColumn
+            {
+                Name = "Method",
+                HeaderText = "Method",
+                Width = 80
+            };
+            methodColumn.Items.AddRange(new[] { "redact", "replace", "mask", "hash" });
+            dgvCustomPatterns.Columns.Add(methodColumn);
+
+            dgvCustomPatterns.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CustomReplacement",
+                HeaderText = "Custom Replacement",
+                Width = 120
+            });
+
+            dgvCustomPatterns.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Description",
+                HeaderText = "Description",
+                Width = 150
+            });
+
+            // Buttons for pattern management
+            btnAddPattern = new Button
+            {
+                Text = "Add Pattern",
+                Location = new Point(20, 410),
+                Size = new Size(100, 25)
+            };
+            btnAddPattern.Click += BtnAddPattern_Click;
+
+            btnRemovePattern = new Button
+            {
+                Text = "Remove Pattern",
+                Location = new Point(130, 410),
+                Size = new Size(100, 25)
+            };
+            btnRemovePattern.Click += BtnRemovePattern_Click;
+
+            btnTestPattern = new Button
+            {
+                Text = "Test Pattern",
+                Location = new Point(240, 410),
+                Size = new Size(100, 25)
+            };
+            btnTestPattern.Click += BtnTestPattern_Click;
+
+            LoadCustomPatternsData();
+
+            tab.Controls.AddRange(new Control[] 
+            { 
+                lblInstructions, dgvCustomPatterns, 
+                btnAddPattern, btnRemovePattern, btnTestPattern 
+            });
+        }
+
         private void CreatePythonTab(TabPage tab)
         {
             var lblPythonLabel = new Label
@@ -311,6 +435,27 @@ namespace SecurePaste.Forms
                     entity.Type,
                     entity.AnonymizationMethod,
                     entity.CustomReplacement ?? ""
+                );
+            }
+        }
+
+        private void LoadCustomPatternsData()
+        {
+            if (dgvCustomPatterns == null) return;
+            
+            dgvCustomPatterns.Rows.Clear();
+            
+            foreach (var pattern in _configuration.CustomPatterns)
+            {
+                dgvCustomPatterns.Rows.Add(
+                    pattern.Enabled,
+                    pattern.Name,
+                    pattern.EntityType,
+                    pattern.Pattern,
+                    pattern.ConfidenceScore.ToString("0.00"),
+                    pattern.AnonymizationMethod,
+                    pattern.CustomReplacement ?? "",
+                    pattern.Description ?? ""
                 );
             }
         }
@@ -404,6 +549,34 @@ namespace SecurePaste.Forms
                     }
                 }
 
+                // Update custom patterns
+                if (dgvCustomPatterns != null)
+                {
+                    for (int i = 0; i < dgvCustomPatterns.Rows.Count && i < _configuration.CustomPatterns.Count; i++)
+                    {
+                        var row = dgvCustomPatterns.Rows[i];
+                        var pattern = _configuration.CustomPatterns[i];
+                        
+                        pattern.Enabled = (bool)(row.Cells["Enabled"].Value ?? false);
+                        pattern.Name = row.Cells["Name"].Value?.ToString() ?? "";
+                        pattern.EntityType = row.Cells["EntityType"].Value?.ToString() ?? "";
+                        pattern.Pattern = row.Cells["Pattern"].Value?.ToString() ?? "";
+                        
+                        if (double.TryParse(row.Cells["ConfidenceScore"].Value?.ToString(), out double confidence))
+                        {
+                            pattern.ConfidenceScore = Math.Max(0.1, Math.Min(1.0, confidence));
+                        }
+                        
+                        pattern.AnonymizationMethod = row.Cells["Method"].Value?.ToString() ?? "redact";
+                        pattern.CustomReplacement = string.IsNullOrWhiteSpace(row.Cells["CustomReplacement"].Value?.ToString()) 
+                            ? null 
+                            : row.Cells["CustomReplacement"].Value?.ToString();
+                        pattern.Description = string.IsNullOrWhiteSpace(row.Cells["Description"].Value?.ToString()) 
+                            ? null 
+                            : row.Cells["Description"].Value?.ToString();
+                    }
+                }
+
                 _configService.SaveConfiguration(_configuration);
                 
                 MessageBox.Show("Configuration saved successfully!", "Success", 
@@ -428,8 +601,65 @@ namespace SecurePaste.Forms
                 _configuration.ResetToDefaults();
                 LoadConfiguration();
                 LoadEntitiesData();
+                LoadCustomPatternsData();
                 
                 MessageBox.Show("Configuration has been reset to defaults.", "Reset Complete", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void BtnAddPattern_Click(object? sender, EventArgs e)
+        {
+            using var patternForm = new CustomPatternForm();
+            if (patternForm.ShowDialog() == DialogResult.OK)
+            {
+                var newPattern = patternForm.GetPattern();
+                if (newPattern != null)
+                {
+                    _configuration.CustomPatterns.Add(newPattern);
+                    LoadCustomPatternsData();
+                }
+            }
+        }
+
+        private void BtnRemovePattern_Click(object? sender, EventArgs e)
+        {
+            if (dgvCustomPatterns?.SelectedRows.Count > 0)
+            {
+                var selectedIndex = dgvCustomPatterns.SelectedRows[0].Index;
+                if (selectedIndex >= 0 && selectedIndex < _configuration.CustomPatterns.Count)
+                {
+                    var patternName = _configuration.CustomPatterns[selectedIndex].Name;
+                    if (MessageBox.Show($"Are you sure you want to remove the pattern '{patternName}'?", 
+                        "Remove Pattern", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    {
+                        _configuration.CustomPatterns.RemoveAt(selectedIndex);
+                        LoadCustomPatternsData();
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please select a pattern to remove.", "No Pattern Selected", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private async void BtnTestPattern_Click(object? sender, EventArgs e)
+        {
+            if (dgvCustomPatterns?.SelectedRows.Count > 0)
+            {
+                var selectedIndex = dgvCustomPatterns.SelectedRows[0].Index;
+                if (selectedIndex >= 0 && selectedIndex < _configuration.CustomPatterns.Count)
+                {
+                    var pattern = _configuration.CustomPatterns[selectedIndex];
+                    using var testForm = new PatternTestForm(_presidioService, pattern);
+                    testForm.ShowDialog();
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please select a pattern to test.", "No Pattern Selected", 
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
